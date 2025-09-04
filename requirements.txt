@@ -1,0 +1,14 @@
+# Flask and Web Framework
+Flask==3.0.0
+Flask-CORS==4.0.0
+Werkzeug==3.0.1
+
+# Database and ORM
+SQLAlchemy==2.0.43
+psycopg2-binary==2.9.10
+
+# Environment Configuration
+python-dotenv==1.1.1
+
+# Additional useful packages for development
+requests==2.31.0
