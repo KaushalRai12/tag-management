@@ -187,8 +187,8 @@ def update_tag(tag_uuid):
             db.close()
             return jsonify({
                 'status': 'fail',
-                'message': 'No image file provided'
-            }), 400
+                'message': 'Inappropriate image size'
+            }), 300
         
         image_file = request.files['image']
         
@@ -197,16 +197,16 @@ def update_tag(tag_uuid):
             db.close()
             return jsonify({
                 'status': 'fail',
-                'message': 'No image file selected'
-            }), 400
+                'message': 'Inappropriate image size'
+            }), 300
         
         # Validate file type
         if not image_file.content_type or not image_file.content_type.startswith('image/jpeg'):
             db.close()
             return jsonify({
                 'status': 'fail',
-                'message': 'Only JPG images are allowed'
-            }), 400
+                'message': 'Inappropriate image size'
+            }), 300
         
         # Read image data
         image_data = image_file.read()
@@ -219,7 +219,7 @@ def update_tag(tag_uuid):
             return jsonify({
                 'status': 'fail',
                 'message': 'Inappropriate image size'
-            }), 400
+            }), 300
         
         # Generate unique filename
         timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
@@ -247,8 +247,8 @@ def update_tag(tag_uuid):
             db.close()
             return jsonify({
                 'status': 'fail',
-                'message': f'Failed to save image: {str(e)}'
-            }), 500
+                'message': 'Inappropriate image size'
+            }), 300
             
     except Exception as e:
         return jsonify({

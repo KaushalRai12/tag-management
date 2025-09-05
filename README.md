@@ -98,12 +98,20 @@ Add a new tag to the system.
 ### POST /update_tag/{tag_uuid}
 Update a tag with an image file.
 
-**Request:** Multipart form data with `image` field containing a JPG file.
+**Request:** JPG image file as multipart form data
 
-**Response:**
+**Response 200 (Success):**
 ```json
 {
     "status": "success"
+}
+```
+
+**Response 300 (Failure):**
+```json
+{
+    "status": "fail",
+    "message": "Inappropriate image size"
 }
 ```
 
@@ -195,10 +203,17 @@ The test script will:
 - **Headers:** `Content-Type: multipart/form-data`
 - **Body (form-data):**
   - Key: `image`, Type: `File`, Value: Select a JPG image file
-- **Expected Response:**
+- **Expected Response 200 (Success):**
 ```json
 {
     "status": "success"
+}
+```
+- **Expected Response 300 (Failure):**
+```json
+{
+    "status": "fail",
+    "message": "Inappropriate image size"
 }
 ```
 
@@ -216,11 +231,11 @@ The test script will:
 - **Body:** Image file
 - **Expected Response:** `404 Not Found`
 
-**Invalid Image Type:**
+**Invalid Image (Wrong Type/Size/Missing):**
 - **Method:** `POST`
 - **URL:** `http://localhost:8000/update_tag/{valid_uuid}`
-- **Body:** PNG or other non-JPG file
-- **Expected Response:** `400 Bad Request`
+- **Body:** PNG, oversized file, or no file
+- **Expected Response:** `300` with `{"status": "fail", "message": "Inappropriate image size"}`
 
 ## 🐳 Docker Services
 
@@ -252,10 +267,11 @@ The test script will:
 ## 📊 Error Handling
 
 The API returns appropriate HTTP status codes:
-- `200`: Success
-- `201`: Created
-- `400`: Bad Request (validation errors)
-- `404`: Not Found
+- `200`: Success (image upload success)
+- `201`: Created (tag creation success)
+- `300`: Image upload failure (wrong type, size, or missing file)
+- `400`: Bad Request (duplicate MAC address)
+- `404`: Not Found (tag not found)
 - `500`: Internal Server Error
 
 ## 🔧 Debugging & Troubleshooting
