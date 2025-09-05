@@ -318,19 +318,17 @@ docker exec -it tag-management-postgres-1 psql -U flask_api_user -d tag_manageme
 docker exec -it tag-management-postgres-1 psql -U flask_api_user -d tag_management -c "SELECT COUNT(*) FROM tags;"
 ```
 
-#### Clean Up
+#### Clean Up (Development Only)
 ```bash
-# Stop and remove containers
+# Stop containers (keeps data)
+docker-compose stop
+
+# Stop and remove containers (keeps volumes)
 docker-compose down
 
-# Stop and remove containers + volumes (fresh start)
-docker-compose down -v
-
-# Remove all Docker resources
-docker system prune -f
-
-# Clean up specific project
-docker-compose down -v --remove-orphans
+# WARNING: Only use in development - removes all data
+# docker-compose down -v
+# docker system prune -f
 ```
 
 ### Common Issues & Solutions
@@ -390,14 +388,17 @@ python test_endpoints.py
 
 ### Development Workflow
 
-#### 1. Fresh Start
+#### 1. Fresh Start (Development Only)
 ```bash
-# Clean everything
-docker-compose down -v
-docker system prune -f
+# Stop containers
+docker-compose stop
 
-# Start fresh
+# Start fresh (keeps existing data)
 docker-compose up --build
+
+# WARNING: Only for development - removes all data
+# docker-compose down -v
+# docker-compose up --build
 ```
 
 #### 2. Code Changes
@@ -409,11 +410,14 @@ docker-compose up --build
 docker-compose restart flask-app
 ```
 
-#### 3. Database Reset
+#### 3. Database Reset (Development Only)
 ```bash
-# Reset database (removes all data)
-docker-compose down -v
-docker-compose up -d
+# WARNING: This removes all data - use only in development
+# docker-compose down -v
+# docker-compose up -d
+
+# Safer alternative - restart containers
+docker-compose restart
 ```
 
 ### Monitoring & Logs
@@ -438,11 +442,15 @@ docker-compose logs -f
 # Container stats
 docker stats
 
-# Disk usage
+# Disk usage (safe to run)
 docker system df
 
-# Volume usage
+# Volume usage (safe to run)
 docker volume ls
+
+# WARNING: Don't run these in production
+# docker system prune -f
+# docker volume prune -f
 ```
 
 ### Testing Commands
@@ -472,3 +480,25 @@ curl -X POST http://localhost:8000/update_tag/{uuid} -F "image=@test.jpg"
 - File upload size limit: 5MB
 - Only JPG images are allowed
 - MAC address uniqueness enforced
+
+## ⚠️ Production Safety
+
+### Commands to AVOID in Production:
+- `docker-compose down -v` - Removes all data volumes
+- `docker system prune -f` - Removes all unused containers, networks, images
+- `docker volume prune -f` - Removes all unused volumes
+- `docker-compose down -v --remove-orphans` - Removes containers and volumes
+
+### Safe Production Commands:
+- `docker-compose up -d` - Start services
+- `docker-compose stop` - Stop services (keeps data)
+- `docker-compose restart` - Restart services (keeps data)
+- `docker-compose logs -f` - View logs
+- `docker-compose ps` - Check status
+
+### Production Deployment:
+1. Use environment-specific `.env` files
+2. Set up proper backup strategies for database volumes
+3. Use Docker secrets for sensitive data
+4. Monitor container health and resource usage
+5. Never run destructive commands without proper backups
