@@ -59,10 +59,62 @@ A simple, self-contained Flask-based web API for managing tags with image upload
    docker-compose up --build
    ```
 
-3. **Test the application:**
+3. **Wait for containers to be ready:**
+   ```bash
+   # Wait 30-60 seconds for containers to start up
+   # You'll see "Database tables created successfully!" in the logs
+   ```
+
+4. **Verify containers are running:**
+   ```bash
+   # Check if both containers are running
+   docker-compose ps
+   
+   # Should show both containers as "Up"
+   # tag-management-flask-app-1   Up   0.0.0.0:8000->8000/tcp
+   # tag-management-postgres-1    Up   0.0.0.0:5432->5432/tcp
+   ```
+
+5. **Test the application:**
    ```bash
    python test_endpoints.py
    ```
+   
+   **What this does:** The test script automatically tests all API endpoints:
+   - ✅ Health check endpoint
+   - ✅ Add tag functionality
+   - ✅ Duplicate MAC address prevention
+   - ✅ Image upload with validation
+   - ✅ Error handling for invalid requests
+   
+   **Alternative - Manual Testing with Postman:**
+   
+   **Base URL:** `http://localhost:8000`
+   
+   **1. Health Check**
+   - Method: `GET`
+   - URL: `http://localhost:8000/health`
+   - Expected Response: `{"status": "healthy", "timestamp": "..."}`
+   
+   **2. Add Tag**
+   - Method: `POST`
+   - URL: `http://localhost:8000/add_tag`
+   - Headers: `Content-Type: application/json`
+   - Body (raw JSON):
+   ```json
+   {
+       "tag_mac_address": "AA:BB:CC:DD:EE:FF"
+   }
+   ```
+   - Expected Response: `{"tag_mac_address": "AA:BB:CC:DD:EE:FF", "tag_uuid": "..."}`
+   
+   **3. Update Tag with Image**
+   - Method: `POST`
+   - URL: `http://localhost:8000/update_tag/{tag_uuid}`
+   - Headers: `Content-Type: multipart/form-data`
+   - Body (form-data): Key: `image`, Type: `File`, Value: Select a JPG image
+   - Expected Response 200: `{"status": "success"}`
+   - Expected Response 300: `{"status": "fail", "message": "Inappropriate image size"}`
 
 That's it! The application will be running on `http://localhost:8000`
 
@@ -166,6 +218,108 @@ The test script will:
 - Validate error handling
 - Clean up test data
 
+### Manual Testing with curl Commands
+
+#### 1. Health Check
+```bash
+curl -X GET http://localhost:8000/health
+```
+**Expected Response:**
+```json
+{
+    "status": "healthy",
+    "timestamp": "2024-01-01T12:00:00"
+}
+```
+
+#### 2. Add Tag
+```bash
+curl -X POST http://localhost:8000/add_tag \
+  -H "Content-Type: application/json" \
+  -d '{"tag_mac_address": "AA:BB:CC:DD:EE:FF"}'
+```
+**Expected Response:**
+```json
+{
+    "tag_mac_address": "AA:BB:CC:DD:EE:FF",
+    "tag_uuid": "550e8400-e29b-41d4-a716-446655440000"
+}
+```
+
+#### 3. Add Another Tag (Different MAC)
+```bash
+curl -X POST http://localhost:8000/add_tag \
+  -H "Content-Type: application/json" \
+  -d '{"tag_mac_address": "11:22:33:44:55:66"}'
+```
+
+#### 4. Test Duplicate MAC Address (Error Case)
+```bash
+curl -X POST http://localhost:8000/add_tag \
+  -H "Content-Type: application/json" \
+  -d '{"tag_mac_address": "AA:BB:CC:DD:EE:FF"}'
+```
+**Expected Response:** `400 Bad Request`
+
+#### 5. Update Tag with Image
+First, get a tag UUID from step 2, then:
+```bash
+# Create a test JPG image (if you don't have one)
+echo "test" > test_image.jpg
+
+# Upload image to tag (replace {tag_uuid} with actual UUID)
+curl -X POST http://localhost:8000/update_tag/{tag_uuid} \
+  -F "image=@test_image.jpg"
+```
+**Expected Response 200 (Success):**
+```json
+{
+    "status": "success"
+}
+```
+
+#### 6. Test Image Upload Error Cases
+
+**Missing Image File:**
+```bash
+curl -X POST http://localhost:8000/update_tag/{tag_uuid}
+```
+**Expected Response:** `300` with `{"status": "fail", "message": "Inappropriate image size"}`
+
+**Empty Filename:**
+```bash
+curl -X POST http://localhost:8000/update_tag/{tag_uuid} \
+  -F "image=@"
+```
+
+**Wrong File Type (PNG):**
+```bash
+# Create a PNG file
+echo "test" > test_image.png
+
+curl -X POST http://localhost:8000/update_tag/{tag_uuid} \
+  -F "image=@test_image.png"
+```
+
+**Non-existent Tag:**
+```bash
+curl -X POST http://localhost:8000/update_tag/00000000-0000-0000-0000-000000000000 \
+  -F "image=@test_image.jpg"
+```
+**Expected Response:** `404 Not Found`
+
+#### 7. Test with Verbose Output
+```bash
+# See full HTTP response including headers
+curl -v -X GET http://localhost:8000/health
+
+# See response status code only
+curl -w "%{http_code}\n" -o /dev/null -s http://localhost:8000/health
+
+# Test with response time
+curl -w "Time: %{time_total}s\nStatus: %{http_code}\n" -o /dev/null -s http://localhost:8000/health
+```
+
 ### Manual Testing with Postman
 
 #### 1. Health Check
@@ -246,7 +400,7 @@ The test script will:
 
 ## 🛠️ Development
 
-### Local Development (without Docker)
+### Local Development (without Docker , dont use this because you are now running everything in the docker)
 
 1. **Install dependencies:**
    ```bash
@@ -295,6 +449,11 @@ docker-compose up --build --force-recreate
 # Check running containers
 docker-compose ps
 
+# Expected output:
+# NAME                         IMAGE                      COMMAND                           SERVICE
+# tag-management-flask-app-1   tag-management-flask-app   "python app.py"                   flask-app
+# tag-management-postgres-1    postgres:15                "docker-entrypoint.sh postgres"   postgres
+
 # Check container logs
 docker-compose logs flask-app
 docker-compose logs postgres
@@ -303,7 +462,24 @@ docker-compose logs postgres
 docker-compose logs -f flask-app
 ```
 
-#### Database Operations
+#### Verify Application is Ready
+```bash
+# Test health endpoint
+curl http://localhost:8000/health
+
+# Expected response:
+# {"status":"healthy","timestamp":"2024-01-01T12:00:00"}
+
+# Check database connection
+docker exec tag-management-postgres-1 psql -U flask_api_user -d tag_management -c "SELECT 1;"
+
+# Expected response:
+#  ?column? 
+# ----------
+#         1
+```
+
+#### Database Operations -> Remember that the database is running as a container so below code will be used to connect to the database ( -it means integrated terminal)
 ```bash
 # Connect to database
 docker exec -it tag-management-postgres-1 psql -U flask_api_user -d tag_management
@@ -386,6 +562,28 @@ curl http://localhost:8000/health
 python test_endpoints.py
 ```
 
+#### 5. Containers Not Starting
+**Problem:** Containers fail to start or keep restarting
+
+**Solution:**
+```bash
+# Check container status
+docker-compose ps
+
+# Check logs for errors
+docker-compose logs
+
+# Check if ports are available
+netstat -ano | findstr :8000
+netstat -ano | findstr :5432
+
+# Restart containers
+docker-compose restart
+
+# If still failing, check Docker resources
+docker system df
+```
+
 ### Development Workflow
 
 #### 1. Fresh Start (Development Only)
@@ -399,6 +597,63 @@ docker-compose up --build
 # WARNING: Only for development - removes all data
 # docker-compose down -v
 # docker-compose up --build
+```
+
+#### 2. Complete Docker Cleanup (Development Only)
+**⚠️ WARNING: These commands will remove ALL Docker containers, images, volumes, and networks from your local machine. Use only in development!**
+
+```bash
+# Stop all running containers
+docker stop $(docker ps -aq)
+
+# Remove all containers
+docker rm $(docker ps -aq)
+
+# Remove all images
+docker rmi $(docker images -q)
+
+# Remove all volumes
+docker volume rm $(docker volume ls -q)
+
+# Remove all networks (except default ones)
+docker network rm $(docker network ls -q)
+
+# Remove all unused data (containers, networks, images, build cache)
+docker system prune -a --volumes
+
+# Alternative: Nuclear option - removes EVERYTHING
+docker system prune -a --volumes --force
+```
+
+**Step-by-step cleanup for this project only:**
+```bash
+# Stop and remove project containers
+docker-compose down -v
+
+# Remove project images
+docker rmi tag-management-flask-app
+docker rmi postgres:15
+
+# Remove project volumes
+docker volume rm tag-management_postgres_data
+
+# Clean up any dangling resources
+docker system prune -f
+```
+
+**Verify cleanup:**
+```bash
+# Check containers (should be empty)
+docker ps -a
+
+# Check images (should not show project images)
+docker images
+
+# Check volumes (should not show project volumes)
+docker volume ls
+
+# Check networks
+docker network ls
 ```
 
 #### 2. Code Changes
