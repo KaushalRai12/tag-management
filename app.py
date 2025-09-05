@@ -16,7 +16,6 @@ from werkzeug.utils import secure_filename
 # SQLAlchemy imports
 from sqlalchemy import create_engine, Column, Integer, String, DateTime
 from sqlalchemy.orm import declarative_base, sessionmaker, Session
-from sqlalchemy.ext.declarative import declarative_base
 
 # Environment configuration
 from dotenv import load_dotenv
@@ -56,8 +55,28 @@ class Tag(Base):
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-# Create database tables
-Base.metadata.create_all(bind=engine)
+# Create database tables with retry mechanism
+def create_tables_with_retry():
+    """Create database tables with retry mechanism"""
+    import time
+    max_retries = 30
+    retry_delay = 2
+    
+    for attempt in range(max_retries):
+        try:
+            Base.metadata.create_all(bind=engine)
+            print("Database tables created successfully!")
+            return True
+        except Exception as e:
+            if attempt < max_retries - 1:
+                print(f"Database connection attempt {attempt + 1} failed, retrying in {retry_delay} seconds...")
+                time.sleep(retry_delay)
+            else:
+                print(f" Failed to create database tables after {max_retries} attempts: {e}")
+                raise
+
+# Initialize database
+create_tables_with_retry()
 
 # Flask application
 app = Flask(__name__)

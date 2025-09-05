@@ -12,3 +12,4 @@ python-dotenv==1.1.1
 
 # Additional useful packages for development
 requests==2.31.0
+Pillow==10.0.0
